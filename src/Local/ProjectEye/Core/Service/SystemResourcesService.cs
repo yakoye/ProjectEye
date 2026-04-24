@@ -69,8 +69,13 @@ namespace ProjectEye.Core.Service
             //语言
             Languages.Add(new ComboxModel()
             {
-                DisplayName = "中文",
+                DisplayName = "中文-简体",
                 Value = "zh"
+            });
+            Languages.Add(new ComboxModel()
+            {
+                DisplayName = "中文-繁體",
+                Value = "zh-tw"
             });
             Languages.Add(new ComboxModel()
             {

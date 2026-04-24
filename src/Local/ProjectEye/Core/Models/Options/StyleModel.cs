@@ -41,7 +41,7 @@ namespace ProjectEye.Core.Models.Options
         /// <summary>
         /// 预提醒内容
         /// </summary>
-        public string PreAlertMessage { get; set; } = "您已持续用眼20分钟，休息一会吧！请将注意力集中在至少6米远的地方20秒！";
+        public string PreAlertMessage { get; set; } = " 您已持续用眼20分钟，休息一会吧！\r\n请将注意力集中在至少6米远的地方20秒！";
         /// <summary>
         /// 预提醒图标
         /// </summary>
@@ -93,7 +93,7 @@ namespace ProjectEye.Core.Models.Options
         /// <summary>
         /// 语言
         /// </summary>
-        public ComboxModel Language { get; set; } = new ComboxModel() { DisplayName = "中文", Value = "zh" };
+        public ComboxModel Language { get; set; } = new ComboxModel() { DisplayName = "中文-简体", Value = "zh" };
         /// <summary>
         /// 数据统计窗口工作时间占位图路径
         /// </summary>
