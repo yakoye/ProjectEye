@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Project1.UI.Controls;
+using Project1.UI.Cores;
 using ProjectEye.Core;
 using ProjectEye.Core.Service;
 using ProjectEye.Models;
@@ -56,8 +58,23 @@ namespace ProjectEye.ViewModels
                         var data = new UIDesignModel();
                         if (FileHelper.Exists(UIConfigPath))
                         {
-                            data = JsonConvert.DeserializeObject<UIDesignModel>(FileHelper.Read(UIConfigPath));
-
+                            string jsonContent = FileHelper.Read(UIConfigPath);
+                            data = JsonConvert.DeserializeObject<UIDesignModel>(jsonContent);
+                            
+                            // 处理 Background 颜色转换：从 JSON 字符串转换为 Brush
+                            try
+                            {
+                                JObject jsonObj = JObject.Parse(jsonContent);
+                                string bgColorStr = jsonObj["ContainerAttr"]?["Background"]?.Value<string>();
+                                if (!string.IsNullOrEmpty(bgColorStr))
+                                {
+                                    data.ContainerAttr.Background = Project1UIColor.Get(bgColorStr);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LogHelper.Warning($"Failed to convert background color: {ex.Message}");
+                            }
                         }
                         else
                         {

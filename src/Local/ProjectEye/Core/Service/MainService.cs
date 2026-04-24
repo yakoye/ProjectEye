@@ -43,6 +43,10 @@ namespace ProjectEye.Core.Service
         /// </summary>
         private bool isDateTimerReset;
         /// <summary>
+        /// 锁定屏幕时间
+        /// </summary>
+        private DateTime? lockTime;
+        /// <summary>
         /// 预提醒操作
         /// </summary>
         private PreAlertAction preAlertAction;
@@ -114,6 +118,11 @@ namespace ProjectEye.Core.Service
 
             app.Exit += new ExitEventHandler(app_Exit);
             SystemEvents.PowerModeChanged += new PowerModeChangedEventHandler(OnPowerModeChanged);
+            SystemEvents.SessionSwitch += new SessionSwitchEventHandler(OnSessionSwitch);
+            
+            // 订阅屏幕锁定/解锁事件
+            screen.OnScreenLocked += OnScreenLocked;
+            screen.OnScreenUnlocked += OnScreenUnlocked;
         }
 
         #region 初始化
@@ -228,6 +237,72 @@ namespace ProjectEye.Core.Service
                     //电脑恢复
                     Start();
                     break;
+            }
+        }
+
+        private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+        {
+            switch (e.Reason)
+            {
+                case SessionSwitchReason.SessionLock:
+                    //屏幕锁定 - 记录时间并隐藏提醒窗口
+                    Debug.WriteLine("===== 屏幕锁定事件 =====");
+                    lockTime = DateTime.Now;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        WindowManager.Hide("TipWindow");
+                    });
+                    break;
+                case SessionSwitchReason.SessionUnlock:
+                    //屏幕解锁 - 检查锁定持续时间
+                    Debug.WriteLine("===== 屏幕解锁事件 =====");
+                    if (lockTime.HasValue)
+                    {
+                        double lockDurationSeconds = (DateTime.Now - lockTime.Value).TotalSeconds;
+                        Debug.WriteLine($"锁屏持续时间: {lockDurationSeconds} 秒");
+                        // 如果锁屏超过60秒，重置计时器
+                        if (lockDurationSeconds >= 60)
+                        {
+                            Debug.WriteLine("锁屏时间超过1分钟，重置计时器");
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                ReStart();
+                            });
+                        }
+                        lockTime = null;
+                    }
+                    break;
+            }
+        }
+
+        private void OnScreenLocked(object sender, EventArgs e)
+        {
+            //屏幕锁定或睡眠
+            Debug.WriteLine("===== ScreenService 屏幕锁定事件 =====");
+            lockTime = DateTime.Now;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                WindowManager.Hide("TipWindow");
+            });
+        }
+
+        private void OnScreenUnlocked(object sender, EventArgs e)
+        {
+            //屏幕解锁或唤醒
+            Debug.WriteLine("===== ScreenService 屏幕解锁事件 =====");
+            if (lockTime.HasValue)
+            {
+                double lockDurationSeconds = (DateTime.Now - lockTime.Value).TotalSeconds;
+                Debug.WriteLine($"锁屏持续时间: {lockDurationSeconds} 秒");
+                if (lockDurationSeconds >= 60)
+                {
+                    Debug.WriteLine("锁屏时间超过1分钟，重置计时器");
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ReStart();
+                    });
+                }
+                lockTime = null;
             }
         }
 
@@ -426,17 +501,31 @@ namespace ProjectEye.Core.Service
         #endregion
 
         #region 启动计时实际操作
-        private void DoStart(bool isHard = true)
+        private void DoStart(bool isHard = true, bool forceWorkTimer = false)
         {
+            Debug.WriteLine($"[DoStart] 调用 - isHard: {isHard}, forceWorkTimer: {forceWorkTimer}, Noreset: {config.options.General.Noreset}, IsTomatoMode: {config.options.General.IsTomatoMode}");
+            
             //允许硬启动，否则只有在关闭暂不提醒和番茄时钟模式时才允许启动工作计时
-            if (isHard || !config.options.General.Noreset && !config.options.General.IsTomatoMode)
+            // forceWorkTimer = true 时，无条件启动工作计时器（用于锁屏/睡眠重置）
+            bool shouldStartWorkTimer = forceWorkTimer || isHard || (!config.options.General.Noreset && !config.options.General.IsTomatoMode);
+            Debug.WriteLine($"[DoStart] shouldStartWorkTimer: {shouldStartWorkTimer}");
+            
+            if (shouldStartWorkTimer)
             {
                 //休息提醒
                 work_timer.Start();
                 workTimerStopwatch.Restart();
+                Debug.WriteLine($"[DoStart] work_timer.Start() 已执行");
             }
+            else
+            {
+                Debug.WriteLine($"[DoStart] 条件不满足，未启动 work_timer!");
+            }
+            
             //离开监听
             leave_timer.Start();
+            Debug.WriteLine($"[DoStart] leave_timer.Start() 已执行");
+            
             //数据统计
             if (config.options.General.Data)
             {
@@ -444,6 +533,7 @@ namespace ProjectEye.Core.Service
                 statistic.ResetStatisticTime();
                 //用眼统计
                 useeye_timer.Start();
+                Debug.WriteLine($"[DoStart] 数据统计计时已启动");
             }
             OnStart?.Invoke(this, 0);
         }
@@ -452,15 +542,20 @@ namespace ProjectEye.Core.Service
         #region 停止计时实际操作
         private void DoStop(bool isHard = true)
         {
+            Debug.WriteLine($"[DoStop] 调用 - isHard: {isHard}");
+            
             //统计数据
             StatisticData();
             work_timer.Stop();
             workTimerStopwatch.Stop();
+            Debug.WriteLine($"[DoStop] work_timer 和 workTimerStopwatch 已停止");
+            
             if (isHard)
             {
                 useeye_timer.Stop();
                 leave_timer.Stop();
                 back_timer.Stop();
+                Debug.WriteLine($"[DoStop] 其他计时器已停止");
             }
             busy_timer.Stop();
         }
@@ -472,6 +567,13 @@ namespace ProjectEye.Core.Service
         /// </summary>
         private void ShowTipWindow()
         {
+            if (lockTime.HasValue)
+            {
+                // 如果处于锁屏状态，则直接重置计时器，不显示窗口
+                Debug.WriteLine("锁屏状态下触发休息提醒，直接重置计时器");
+                ReStart();
+                return;
+            }
             if (config.options.Style.IsPreAlert && preAlertAction == PreAlertAction.Break)
             {
                 //预提醒设置跳过

@@ -7,15 +7,31 @@ namespace ProjectEye.Core.Service
 {
     /// <summary>
     /// 屏幕监听服务
-    /// 用于处理插拔显示器时创建和刷新提示窗口
+    /// 用于处理插拔显示器、屏幕锁定等事件
     /// </summary>
     public class ScreenService : IService
     {
         private const int WM_DISPLAYCHANGE = 0x007e;
+        private const int WM_POWERBROADCAST = 0x0218;
+        private const int PBT_APMSUSPEND = 0x0004;
+        private const int PBT_APMRESUMESUSPEND = 0x0007;
+        private const int PBT_APMRESUMEAUTOMATIC = 0x0012;
         private const int ga = 0x020A;
+        
         private readonly DispatcherTimer timer;
         private HwndSource source;
         private readonly HwndSourceHook hwndSourceHook;
+
+        /// <summary>
+        /// 屏幕锁定事件
+        /// </summary>
+        public event EventHandler OnScreenLocked;
+
+        /// <summary>
+        /// 屏幕解锁事件
+        /// </summary>
+        public event EventHandler OnScreenUnlocked;
+
         public ScreenService()
         {
             hwndSourceHook = new HwndSourceHook(WndProc);
@@ -71,8 +87,31 @@ namespace ProjectEye.Core.Service
                 case WM_DISPLAYCHANGE:
                     timer.Start();
                     break;
+                case WM_POWERBROADCAST:
+                    HandlePowerBroadcast(wParam);
+                    break;
             }
             return IntPtr.Zero;
+        }
+
+        /// <summary>
+        /// 处理电源广播消息
+        /// </summary>
+        private void HandlePowerBroadcast(IntPtr wParam)
+        {
+            int powerEvent = (int)wParam;
+            switch (powerEvent)
+            {
+                case PBT_APMSUSPEND:
+                    // 系统进入睡眠或屏幕锁定
+                    OnScreenLocked?.Invoke(this, EventArgs.Empty);
+                    break;
+                case PBT_APMRESUMESUSPEND:
+                case PBT_APMRESUMEAUTOMATIC:
+                    // 系统恢复或屏幕解锁
+                    OnScreenUnlocked?.Invoke(this, EventArgs.Empty);
+                    break;
+            }
         }
     }
 }

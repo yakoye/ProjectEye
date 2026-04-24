@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Project1.UI.Controls;
 using Project1.UI.Controls.Models;
 using Project1.UI.Cores;
@@ -167,12 +168,30 @@ namespace ProjectEye.ViewModels
         {
             var container = new Grid();
             string uiFilePath = $"UI\\{config.options.Style.Theme.ThemeName}_{ScreenName}.json";
-            var data = JsonConvert.DeserializeObject<UIDesignModel>(FileHelper.Read(uiFilePath));
+            string jsonContent = FileHelper.Read(uiFilePath);
+            var data = JsonConvert.DeserializeObject<UIDesignModel>(jsonContent);
             if (data == null)
             {
                 data = theme.GetCreateDefaultTipWindowUI(config.options.Style.Theme.ThemeName, ScreenName);
 
                 FileHelper.Write(uiFilePath, JsonConvert.SerializeObject(data));
+            }
+            else
+            {
+                // 处理 Background 颜色转换：从 JSON 字符串转换为 Brush
+                try
+                {
+                    JObject jsonObj = JObject.Parse(jsonContent);
+                    string bgColorStr = jsonObj["ContainerAttr"]?["Background"]?.Value<string>();
+                    if (!string.IsNullOrEmpty(bgColorStr))
+                    {
+                        data.ContainerAttr.Background = Project1UIColor.Get(bgColorStr);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.Warning($"Failed to convert background color: {ex.Message}");
+                }
             }
             var containerBG = new Border();
             containerBG.Width = Double.NaN;

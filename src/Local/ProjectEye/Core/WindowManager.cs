@@ -302,10 +302,12 @@ namespace ProjectEye.Core
                     var window = GetWindowByScreen(name, screen.DeviceName);
                     if (window != null)
                     {
-                        window.Left = screen.Bounds.Left;
-                        window.Top = screen.Bounds.Top;
-                        window.Width = screen.Bounds.Width;
-                        window.Height = screen.Bounds.Height;
+                        // 获取DPI信息并进行转换
+                        var size = GetSize(screen);
+                        window.Left = ToDips(screen.Bounds.Left, size.XDPI);
+                        window.Top = ToDips(screen.Bounds.Top, size.YDPI);
+                        window.Width = size.Width;
+                        window.Height = size.Height;
                     }
                     else
                     {
@@ -348,7 +350,7 @@ namespace ProjectEye.Core
         {
             ScreenExtensions.Dpi dpi = screen.GetDpi(DpiType.Effective);
 
-            return value / (dpiDirection == DpiDirection.X ? dpi.x : dpi.y / 96.0);
+            return value / (dpiDirection == DpiDirection.X ? (dpi.x / 96.0) : (dpi.y / 96.0));
         }
 
         public static double ToDips(double value, uint dpi)

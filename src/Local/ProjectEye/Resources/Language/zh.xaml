@@ -11,8 +11,8 @@
     <sys:String x:Key="Lang_Quit">退出</sys:String>
 
     <sys:String x:Key="Lang_General">常规</sys:String>
-    <sys:String x:Key="Lang_Notificationinterval">提醒间隔</sys:String>
-    <sys:String x:Key="Lang_Breaktimelength">休息时长</sys:String>
+    <sys:String x:Key="Lang_Notificationinterval">提醒间隔(分)</sys:String>
+    <sys:String x:Key="Lang_Breaktimelength">休息时长(秒)</sys:String>
     <sys:String x:Key="Lang_Autostartatboot">开机启动</sys:String>
     <sys:String x:Key="Lang_Soundforbreakend">休息结束提示音</sys:String>
     <sys:String x:Key="Lang_Statisticsanalysis">数据建议</sys:String>
@@ -29,9 +29,9 @@
 
 
     <sys:String x:Key="Lang_TomatoTimer">番茄时钟</sys:String>
-    <sys:String x:Key="Lang_Work">工作时长</sys:String>
-    <sys:String x:Key="Lang_Shortbreak">短休息</sys:String>
-    <sys:String x:Key="Lang_Longbreak">长休息</sys:String>
+    <sys:String x:Key="Lang_Work">工作时长(分)</sys:String>
+    <sys:String x:Key="Lang_Shortbreak">短休息(分)</sys:String>
+    <sys:String x:Key="Lang_Longbreak">长休息(分)</sys:String>
     <sys:String x:Key="Lang_Soundforworksstart">工作开始提示音</sys:String>
     <sys:String x:Key="Lang_Soundforworksend">工作结束提示音</sys:String>
 
