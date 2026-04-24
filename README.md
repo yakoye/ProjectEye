@@ -34,9 +34,10 @@
 
 ## 运行环境
 
-OS: Windows7/10
+OS: Windows10/11
+tools: Visual Studio 2026
+Runtime：.NETFramework,Version=v4.8
 
-Runtime: [.NET Framework 4.5+](https://dotnet.microsoft.com/download/dotnet-framework) 
 
 ## 其他
 
