@@ -1,10 +1,11 @@
-﻿using ProjectEye.Core.Models.Options;
+using ProjectEye.Core.Models.Options;
 using System;
 using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Resources;
 using System.Windows.Threading;
+using ProjectEye.Core;
 
 namespace ProjectEye.Core.Service
 {
@@ -36,6 +37,10 @@ namespace ProjectEye.Core.Service
         private MenuItem menuItem_NoReset_Off;
 
         private DispatcherTimer noresetTimer;
+        /// <summary>
+        /// 托盘 tooltip 倒计时刷新定时器（每秒刷新一次）
+        /// </summary>
+        private DispatcherTimer tooltipRefreshTimer;
 
         private string lastIcon = string.Empty;
 
@@ -130,40 +135,88 @@ namespace ProjectEye.Core.Service
 
             noresetTimer = new DispatcherTimer();
 
+            // 初始化 tooltip 刷新定时器，每秒刷新一次
+            tooltipRefreshTimer = new DispatcherTimer();
+            tooltipRefreshTimer.Interval = TimeSpan.FromSeconds(1);
+            tooltipRefreshTimer.Tick += TooltipRefreshTimer_Tick;
         }
         #endregion
 
         #region Events
+
+        private DateTime _lastMouseMoveTime = DateTime.MinValue;
+
+        private void TooltipRefreshTimer_Tick(object sender, EventArgs e)
+        {
+            // 超过60秒没有鼠标移动，认为鼠标已离开托盘图标，停止刷新
+            if ((DateTime.Now - _lastMouseMoveTime).TotalSeconds > 60)
+            {
+                tooltipRefreshTimer.Stop();
+                return;
+            }
+            UpdateTooltipText();
+        }
+
+        private void UpdateTooltipText()
+        {
+            try
+            {
+                if (mainService.IsWorkTimerRun() && !backgroundWorker.IsBusy)
+                {
+                    double restCT = mainService.GetRestCountdownMinutes();
+                    string minUnit = Application.Current.Resources["Lang_Minutes_n"]?.ToString() ?? "分钟";
+                    string secUnit = Application.Current.Resources["Lang_Seconds_n"]?.ToString() ?? "秒";
+                    string hourUnit = Application.Current.Resources["Lang_Hours_n"]?.ToString() ?? "小时";
+                    string nextBreakLabel = Application.Current.Resources["Lang_Thenextbreak"]?.ToString() ?? "距离下一次休息";
+
+                    string restStr;
+                    if (restCT < 1)
+                    {
+                        restStr = Math.Round(restCT * 60, 0).ToString() + secUnit;
+                    }
+                    else if (restCT > 60)
+                    {
+                        double restHour = Math.Round(restCT / 60, 1);
+                        if (restHour.ToString().IndexOf(".") != -1)
+                        {
+                            restStr = $"{restHour.ToString().Split('.')[0]}{hourUnit} {restHour.ToString().Split('.')[1]}{minUnit}";
+                        }
+                        else
+                        {
+                            restStr = $"{restHour}{hourUnit}";
+                        }
+                    }
+                    else
+                    {
+                        restStr = Math.Round(restCT, 1) + minUnit;
+                    }
+                    SetText($"Project Eye\r\n{nextBreakLabel}: " + restStr);
+                }
+                else if (config.options.General.Noreset)
+                {
+                    string offLabel = Application.Current.Resources["Lang_Reminderisoff"]?.ToString() ?? "提醒已关闭";
+                    SetText($"Project Eye: {offLabel}");
+                }
+                else if (!backgroundWorker.IsBusy)
+                {
+                    SetText("Project Eye");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Warning($"UpdateTooltipText failed: {ex.Message}");
+                SetText("Project Eye");
+            }
+        }
+
         private void NotifyIcon_MouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
         {
-            if (mainService.IsWorkTimerRun() && !backgroundWorker.IsBusy)
+            _lastMouseMoveTime = DateTime.Now;
+            if (!tooltipRefreshTimer.IsEnabled)
             {
-                double restCT = mainService.GetRestCountdownMinutes();
-                string restStr = Math.Round(restCT, 1) + $"{Application.Current.Resources["Lang_Minutes_n"]}";
-                if (restCT < 1)
-                {
-                    restStr = Math.Round((restCT * 60), 0).ToString() + $"{Application.Current.Resources["Lang_Seconds_n"]}";
-                }
-                if (restCT > 60)
-                {
-                    restCT = Math.Round(restCT / 60, 1);
-
-                    restStr = $"{restCT.ToString()}{Application.Current.Resources["Lang_Hours_n"]}";
-                    if (restCT.ToString().IndexOf(".") != -1)
-                    {
-                        restStr = $"{restCT.ToString().Split('.')[0]}{Application.Current.Resources["Lang_Hours_n"]} {restCT.ToString().Split('.')[1]}{Application.Current.Resources["Lang_Minutes_n"]}";
-                    }
-                }
-
-                SetText($"Project Eye\r\n{Application.Current.Resources["Lang_Thenextbreak"]}: " + restStr);
-            }
-            else if (config.options.General.Noreset)
-            {
-                SetText($"Project Eye: {Application.Current.Resources["Lang_Reminderisoff"]}");
-            }
-            else if (!backgroundWorker.IsBusy)
-            {
-                SetText("Project Eye");
+                // 鼠标移入时立即刷新一次，并启动定时器持续刷新
+                UpdateTooltipText();
+                tooltipRefreshTimer.Start();
             }
             MouseMoveTrayIcon?.Invoke(sender, e);
         }

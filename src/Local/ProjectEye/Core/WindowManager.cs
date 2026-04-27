@@ -358,8 +358,14 @@ namespace ProjectEye.Core
         #region 窗口被关闭event
         private static void window_closed(object sender, EventArgs e)
         {
+            // 窗口已关闭，只从列表中移除，不再调用 Close()（避免递归）
             var window = sender as Window;
-            Close(window.Uid);
+            if (window == null) return;
+            var toRemove = windowList.Where(m => m.window == window).ToList();
+            foreach (var item in toRemove)
+            {
+                windowList.Remove(item);
+            }
         }
         #endregion
 
@@ -367,32 +373,49 @@ namespace ProjectEye.Core
         #region 创建viewmodel实例
         private static object CreateViewModel(string windowName)
         {
-            string nameSpace = "ProjectEye.ViewModels";
-            string viewModelName = windowName.Replace("Window", "ViewModel");
-            Type type = Type.GetType(nameSpace + "." + viewModelName);
-            if (type == null)
+            try
             {
-                //找不到对应的ViewModel
+                string nameSpace = "ProjectEye.ViewModels";
+                string viewModelName = windowName.Replace("Window", "ViewModel");
+                Type type = Type.GetType(nameSpace + "." + viewModelName);
+                if (type == null)
+                {
+                    LogHelper.Warning($"CreateViewModel: 找不到 ViewModel 类型 {viewModelName}");
+                    return null;
+                }
+                var constructors = type.GetConstructors();
+                if (constructors.Length == 0)
+                {
+                    LogHelper.Warning($"CreateViewModel: {viewModelName} 没有公共构造函数");
+                    return null;
+                }
+                var constructorInfoObj = constructors[0];
+                var constructorParameters = constructorInfoObj.GetParameters();
+                int constructorParametersLength = constructorParameters.Length;
+                Type[] types = new Type[constructorParametersLength];
+                object[] objs = new object[constructorParametersLength];
+                for (int i = 0; i < constructorParametersLength; i++)
+                {
+                    string typeFullName = constructorParameters[i].ParameterType.FullName;
+                    Type t = Type.GetType(typeFullName);
+                    types[i] = t;
+                    objs[i] = serviceCollection.GetInstance(typeFullName);
+                }
+                ConstructorInfo ctor = type.GetConstructor(types);
+                if (ctor == null)
+                {
+                    LogHelper.Warning($"CreateViewModel: {viewModelName} 找不到匹配的构造函数");
+                    return null;
+                }
+                object instance = ctor.Invoke(objs);
+                viewModelList.Add(instance);
+                return instance;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error($"CreateViewModel 失败 ({windowName}): {ex.Message}");
                 return null;
             }
-            var constructorInfoObj = type.GetConstructors()[0];
-            var constructorParameters = constructorInfoObj.GetParameters();
-            int constructorParametersLength = constructorParameters.Length;
-            Type[] types = new Type[constructorParametersLength];
-            object[] objs = new object[constructorParametersLength];
-            for (int i = 0; i < constructorParametersLength; i++)
-            {
-                string typeFullName = constructorParameters[i].ParameterType.FullName;
-                Type t = Type.GetType(typeFullName);
-                types[i] = t;
-
-                objs[i] = serviceCollection.GetInstance(typeFullName);
-
-            }
-            ConstructorInfo ctor = type.GetConstructor(types);
-            object instance = ctor.Invoke(objs);
-            viewModelList.Add(instance);
-            return instance;
         }
         #endregion
 

@@ -157,7 +157,7 @@ namespace ProjectEye.Core.Service
             var data = new UIDesignModel();
             data.ContainerAttr = new ContainerModel()
             {
-                Background = Brushes.White,
+                Background = Project1UIColor.Get("#DD008040"),
                 Opacity = .98
             };
 

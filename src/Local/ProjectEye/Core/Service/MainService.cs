@@ -758,6 +758,8 @@ namespace ProjectEye.Core.Service
 
             foreach (var window in tipWindow)
             {
+                // 先取消再订阅，防止重复注册
+                window.IsVisibleChanged -= new DependencyPropertyChangedEventHandler(isVisibleChanged);
                 window.IsVisibleChanged += new DependencyPropertyChangedEventHandler(isVisibleChanged);
             }
         }
