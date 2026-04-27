@@ -44,7 +44,7 @@ namespace ProjectEye.Core
             {
                 if (File.Exists(path))
                 {
-                    return true;
+                    File.Delete(path);
                 }
                 return CreateShortcut(path, "");
             }

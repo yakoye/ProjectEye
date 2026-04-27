@@ -77,9 +77,12 @@ namespace ProjectEye
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            //string errorMsg = "程序发生了不可预料的错误，已经将错误报告保存在程序运行目录Log文件夹下，请将错误内容提供给我们。";
             LogHelper.Error(e.Exception.ToString());
-            //MessageBox.Show(errorMsg, "错误提示，程序即将退出", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (e.Exception is System.Runtime.InteropServices.COMException comException && comException.ErrorCode == unchecked((int)0x80263001))
+            {
+                e.Handled = true;
+                return;
+            }
             e.Handled = true;
             Shutdown();
             string exePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
