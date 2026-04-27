@@ -89,10 +89,8 @@ namespace ProjectEye.ViewModels
             }
             else
             {
-                //关闭窗口
-                WindowManager.Hide("TipWindow");
-                //进入离开状态
-                main.OnLeave();
+                // 10秒超时自动退出，相当于点击了跳过
+                busyCommand_action(null);
             }
         }
 
@@ -105,8 +103,12 @@ namespace ProjectEye.ViewModels
         {
             CreateUI();
             //WindowInstance.Activated += WindowInstance_Activated;
+            // 先取消再订阅，防止重复订阅导致事件被多次触发
+            WindowInstance.KeyUp -= WindowInstance_KeyUp;
             WindowInstance.KeyUp += WindowInstance_KeyUp;
-            (WindowInstance as Project1UIWindow).OnWShow += TipViewModel_OnWShow;
+            var p1Window = WindowInstance as Project1UIWindow;
+            p1Window.OnWShow -= TipViewModel_OnWShow;
+            p1Window.OnWShow += TipViewModel_OnWShow;
         }
 
         private void TipViewModel_OnWShow(object sender, EventArgs e)

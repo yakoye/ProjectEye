@@ -149,6 +149,7 @@ namespace ProjectEye.Core.Service
             //初始化繁忙计时器
             busy_timer = new DispatcherTimer();
             busy_timer.Tick += new EventHandler(busy_timer_Tick);
+            // 设定为30秒超时自动处理
             busy_timer.Interval = new TimeSpan(0, 0, 30);
             //初始化用眼统计计时器
             useeye_timer = new DispatcherTimer();
@@ -308,8 +309,7 @@ namespace ProjectEye.Core.Service
 
         private void busy_timer_Tick(object sender, EventArgs e)
         {
-            Debug.WriteLine("用户超过20秒未处理");
-            //用户超过20秒未处理
+            Debug.WriteLine("提示界面弹出后，用户长时间未处理，触发超时操作");
             busy_timer.Stop();
 
             OnHandleTimeout?.Invoke(this, 0);
@@ -589,6 +589,11 @@ namespace ProjectEye.Core.Service
                 }
                 else
                 {
+                    // 在显示之前更新窗口位置和尺寸（不重建，避免重复订阅事件导致窗口立即关闭）。
+                    // 多屏幕环境下，如果在运行期间切换了主屏幕或者改变了分辨率，
+                    // 通过 UpdateAllScreensWindow 更新位置即可，无需重建 ViewModel。
+                    WindowManager.UpdateAllScreensWindow("TipWindow", true);
+
                     busy_timer.Start();
                     WindowManager.Show("TipWindow");
                 }
